@@ -1,5 +1,4 @@
-# Learning FastAPI Course
-
+# Learning FastAPI Course - FastAPI learning app from book High-Performance Web Apps with FastAPI.
 ## Running the application
 To run the FastAPI application, you can use the following command:
 
