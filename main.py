@@ -1,12 +1,14 @@
 import json
+from decimal import Decimal
 from typing import Dict, Optional
 
 import uvicorn
-from fastapi import Body, FastAPI, Form, Path, Query, Request, Response
+from fastapi import Body, Cookie, FastAPI, Form, Header, Path, Query, Request, Response
 from fastapi.templating import Jinja2Templates
+from fastapi.responses import Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, HttpUrl, EmailStr, SecretStr, Json, FileUrl, field_validator
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, RedirectResponse
 
 app = FastAPI()
 
@@ -35,8 +37,15 @@ class Supplier(BaseModel):
 class Product(BaseModel):
     ID: int
     name: str
-    price: float
-    supplier: list[Supplier]
+    price: Decimal
+    stock: int
+    inventory_val: Decimal
+
+
+class ProductValue(BaseModel):
+    ID: int
+    name: str
+    inventory_val: Decimal
 
 
 class Customer(BaseModel):
@@ -65,6 +74,16 @@ class Student(BaseModel):
                 "subject": {"Math": 90, "English": 80}
             }
         }
+
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request, user: str = Cookie(None)):
+    """
+    This endpoint serves the index page and retrieves a cookie value.
+    """
+    data = {"user": user}
+    return template.TemplateResponse("form.html", {"request": request, "data": data})
 
 
 @app.get("/testjs/{name}", response_class=HTMLResponse)
@@ -196,6 +215,65 @@ async def get_form(
         "address": address,
         "post": post
     }
+
+
+@app.post("/product/", response_model=ProductValue)
+async def add_new(product: Product):
+    """
+    This endpoint adds a new product and returns its inventory value.
+    """
+    product.inventory_val = product.price * product.stock
+    return product
+
+
+@app.post("/setcookie")
+async def set_cookie(request: Request, response: Response, user: str = Form(...), password: str = Form(...)):
+    """
+    This endpoint sets a cookie with user credentials.
+    """
+    response.set_cookie(key="user", value=user)
+    response.set_cookie(key="password", value=password)
+    return {"message": "Cookies set successfully"}
+
+
+@app.get("/header/")
+async def set_header():
+    content = {"message": "Hello World"}
+    headers = {"X-Web-Framework": "FastAPI", "Content-Language": "en-US"}
+
+
+@app.get("/read_header/")
+async def read_header(accept_language: Optional[str] = Header(None)):
+    """
+    This endpoint reads the Accept-Language header from the request.
+    """
+    return {"Accept-Language": accept_language}
+
+
+async def generator():
+    for idx in range(1, 11):
+        yield f"Line {idx}\n"
+
+
+@app.get("/generator/")
+async def set_generator():
+    return StreamingResponse(generator())
+
+
+@app.get("/", response_class=HTMLResponse)
+async def index(request: Request):
+    """
+    This endpoint serves the index page.
+    """
+    return RedirectResponse("/redirect")
+
+
+@app.get("/redirect")
+def redirected(request: Request):
+    """
+    This endpoint redirects to the index page.
+    """
+    return "The page you are looking for is temporarily unavailable. Please try again later."
 
 
 if __name__ == "__main__":
