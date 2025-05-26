@@ -1,10 +1,48 @@
+import json
 from typing import Dict, Optional
 
 import uvicorn
-from fastapi import Body, FastAPI, Path, Query, Request
-from pydantic import BaseModel
+from fastapi import Body, FastAPI, Form, Path, Query, Request, Response
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, HttpUrl, EmailStr, SecretStr, Json, FileUrl, field_validator
+from starlette.responses import HTMLResponse
 
 app = FastAPI()
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+template = Jinja2Templates(directory="templates")
+
+
+class Employee(BaseModel):
+    ID: str
+    pwd: SecretStr
+    details: Json
+    FBProfile: HttpUrl
+
+    @field_validator("ID")
+    def is_alphanumeric(cls, v):
+        if v.isalnum() is False:
+            raise (ValueError("ID must be alphanumeric"))
+
+
+class Supplier(BaseModel):
+    ID: int
+    name: str
+
+
+class Product(BaseModel):
+    ID: int
+    name: str
+    price: float
+    supplier: list[Supplier]
+
+
+class Customer(BaseModel):
+    ID: int
+    name: str
+    products: list[Product]
 
 
 class Item(BaseModel):
@@ -29,14 +67,40 @@ class Student(BaseModel):
         }
 
 
+@app.get("/testjs/{name}", response_class=HTMLResponse)
+async def jsdemo(request: Request, name: str):
+    """
+    This endpoint serves a JavaScript demo page.
+    """
+    data = {"name": name}
+    return template.TemplateResponse("static-js.html", {"request": request, "data": data})
+
+
+@app.get("/hi")
+async def hi():
+    body = '''
+<html>
+<body>
+<h2>Hello World!</h2>
+</body>
+</html>
+'''
+    return Response(content=body, media_type="text/html")
+
+
 @app.post("/student")
 async def add_student(student: Student):
     return student
 
 
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
+@app.get("/{name}", response_class=HTMLResponse)
+async def root(request: Request, name: str):
+    return template.TemplateResponse("hello.html", {"request": request, "name": name})
+
+
+@app.get("/password/{password}")
+async def get_password(password: SecretStr):
+    return {"password": json.dumps(password.get_secret_value())}
 
 
 
@@ -49,6 +113,11 @@ async def create_item(item: Item):
 @app.get("/hello/{name}")
 async def say_hello(name: str):
     return {"message": f"Hello {name}"}
+
+
+@app.post("/employee")
+async def add_employee(employee: Employee):
+    return employee
 
 
 @app.get("/employee/{name}/branch/{branch_id}")
@@ -84,6 +153,49 @@ async def add_product(
         "stock": stock
     }
     return product
+
+
+@app.post("/customer")
+async def get_customer(customer: Customer):
+    """
+    """
+    return customer
+
+
+@app.get("/profile/", response_class=HTMLResponse)
+async def info(request: Request):
+    data = {
+        "name": "Catherine",
+        "languages": ["Python", "Go"]
+    }
+    return template.TemplateResponse(
+        "profile.html",
+        {
+            "request": request,
+            "data": data
+        }
+    )
+
+
+@app.get("/img/", response_class=HTMLResponse)
+async def showing_image(request: Request):
+    """
+    This endpoint serves an image.
+    """
+    return template.TemplateResponse("static-img.html", {"request": request})
+
+
+@app.post("/form/")
+async def get_form(
+        name: str = Form(...),
+        address: str = Form(...),
+        post: str = Form(...),
+):
+    return {
+        "name": name,
+        "address": address,
+        "post": post
+    }
 
 
 if __name__ == "__main__":

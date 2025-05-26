@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='css/main.css') }}">
+</head>
+<body>
+  <h2>Name: {{ data.get("name") }}</h2>
+    <h3>Programming Proficiency</h3>
+    <ul class="b">
+        {% for lang in data.get("languages") %}
+            <li>{{ lang }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
